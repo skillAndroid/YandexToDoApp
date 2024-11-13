@@ -1,48 +1,64 @@
 package com.accsell.todoapp
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.accsell.todoapp.viewModel.TaskViewModel
 
 @Composable
-fun TodoApp(repository: TodoItemsRepository) {
+fun TodoApp(taskViewModel: TaskViewModel) {
     val navController = rememberNavController()
+
+    // Main Navigation Host
     NavHost(navController, startDestination = "main") {
-        composable("main") { MainScreen(navController, repository) }
+        // Main Screen displaying the list of tasks
+        composable("main") {
+            MainScreen(
+                navController = navController,
+                taskViewModel
+            )
+        }
+
+        // Create Todo Screen for adding a new task
         composable("create_todo") {
             CreateTodoScreen(
-                navController,
+                navController = navController,
                 onDelete = { todoItem ->
                     navController.popBackStack()
-                    repository.deleteItem(todoItem)
+                    taskViewModel.deleteTask(todoItem)
                 },
                 onSave = { todoItem ->
-                    repository.addItem(todoItem)
+                    taskViewModel.addTask(todoItem)
+                    navController.popBackStack()
                 }
             )
         }
+
+        // Edit Todo Screen, initialized with the specific task to edit
         composable(
             "edit_todo/{todoId}",
             arguments = listOf(navArgument("todoId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val todoId = backStackEntry.arguments?.getString("todoId")
-            val todoItem = repository.getAllItems().find { it.id == todoId }
-            if (todoItem != null) {
-                CreateTodoScreen(
-                    navController = navController,
-                    onDelete = { todoItem ->
-                        navController.popBackStack()
-                        repository.deleteItem(todoItem)
-                    },
-                    onSave = { updatedItem ->
-                        repository.updateItem(updatedItem.copy(id = todoId.toString()))
-                    },
-                    initialTodoItem = todoItem
-                )
-            }
+            val todoId = backStackEntry.arguments?.getString("todoId") ?: ""
+            val todoItem = taskViewModel.getTaskById(todoId)
+
+            CreateTodoScreen(
+                navController = navController,
+                onDelete = { task ->
+                    navController.popBackStack()
+                    taskViewModel.deleteTask(task)
+                },
+                onSave = { updatedItem ->
+                    taskViewModel.updateTask(updatedItem.copy(id = todoId))
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }
+
