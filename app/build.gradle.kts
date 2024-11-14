@@ -52,6 +52,11 @@ dependencies {
     implementation(libs.androidx.navigation.common.ktx)
     implementation(libs.androidx.navigation.runtime.ktx)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.room.common)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.lifecycle.livedata.ktx)
+    implementation(libs.play.services.gcm)
+    implementation(libs.androidx.runtime.livedata)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -62,6 +67,11 @@ dependencies {
 
    // implementation ("com.google.accompanist:accompanist-swiperefresh:v0.36.0")
     implementation ("androidx.compose.material:material:1.4.0")
+
+    // Retrofit for networking
+    implementation ("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation ("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
 
 }

@@ -46,6 +46,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.accsell.todoapp.api.Task
 import com.accsell.todoapp.ui.theme.my_blue_color
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,9 +57,9 @@ import java.util.UUID
 @Composable
 fun CreateTodoScreen(
     navController: NavController,
-    onSave: (TodoItem) -> Unit,
-    onDelete: (TodoItem) -> Unit,
-    initialTodoItem: TodoItem? = null
+    onSave: (Task) -> Unit,
+    onDelete: (Task) -> Unit,
+    initialTodoItem: Task? = null
 ) {
     val dateFormat = SimpleDateFormat("dd MMMM yyyy", Locale("ru"))
 
@@ -71,7 +72,7 @@ fun CreateTodoScreen(
     var tempDeadline by remember {
         mutableStateOf(initialTodoItem?.deadline?.let {
             try {
-                dateFormat.parse(it)
+                dateFormat.parse(it.toString())
             } catch (e: Exception) {
                 null
             }
@@ -85,23 +86,25 @@ fun CreateTodoScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
 
-    val currentDate = Date()
-    val todoItem = TodoItem(
+    val currentDate = System.currentTimeMillis() // Get the current time in milliseconds
+    val lastUpdatedBy = "user_id" // Set this to the ID of the user who is updating the task
+
+    val todoItem = Task(
         id = initialTodoItem?.id ?: UUID.randomUUID().toString(),
         text = tempText.text,
         importance = tempImportance,
-        deadline = tempDeadline?.let { dateFormat.format(it) },
-        isCompleted = initialTodoItem?.isCompleted ?: false,
-        createdAt = initialTodoItem?.createdAt ?: currentDate.toString(),
-        modifiedAt = if (initialTodoItem != null) dateFormat.format(currentDate) else dateFormat.format(
-            currentDate
-        )
+        deadline = tempDeadline?.time, // tempDeadline is assumed to be a Date object
+        done = initialTodoItem?.done ?: false,
+        color = null, // This might come from the UI or be null
+        createdAt = initialTodoItem?.createdAt ?: currentDate, // Use currentDate if not available
+        changedAt = if (initialTodoItem != null) currentDate else currentDate, // Update with the current timestamp
+        lastUpdatedBy = lastUpdatedBy // Set the user ID or the identifier of the user making the change
     )
 
     LaunchedEffect(initialTodoItem) {
         initialTodoItem?.deadline?.let {
             try {
-                tempDeadline = dateFormat.parse(it)
+                tempDeadline = dateFormat.parse(it.toString())
             } catch (e: Exception) {
             }
         }

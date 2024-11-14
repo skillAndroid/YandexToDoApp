@@ -38,6 +38,7 @@ import androidx.compose.material.rememberDismissState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -49,6 +50,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -73,6 +75,7 @@ import androidx.navigation.NavController
 import com.accsell.todoapp.ui.theme.my_blue_color
 import com.accsell.todoapp.ui.theme.my_primary_color
 import com.accsell.todoapp.ui.theme.my_secondary_color
+import com.accsell.todoapp.viewModel.TaskViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -84,10 +87,9 @@ import java.util.Date
 )
 
 @Composable
-fun MainScreen(navController: NavController, repository: TodoItemsRepository) {
-    val todoItems = remember { mutableStateListOf(*repository.getAllItems().toTypedArray()) }
-    val completedItems =
-        remember { mutableStateListOf(*repository.getCompletedTaskItems().toTypedArray()) }
+fun MainScreen(navController: NavController,  viewModel: TaskViewModel) {
+    val todoItems by viewModel.taskListState.collectAsState()
+    val completedItems = viewModel.getCompletedTasks()
     var showCompleted by rememberSaveable { mutableStateOf(true) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -323,25 +325,21 @@ fun MainScreen(navController: NavController, repository: TodoItemsRepository) {
                             confirmStateChange = { dismissValue ->
                                 when (dismissValue) {
                                     DismissValue.DismissedToStart -> {
+                                        // Handle delete action
                                         scope.launch {
                                             delay(40)
-                                            repository.deleteItem(item)
-                                            todoItems.remove(item)
-
+                                            viewModel.deleteTask(item) // Call ViewModel function to delete
                                         }
                                         true
                                     }
-
-                                    DismissValue.DismissedToEnd -> {
+                                   /* DismissValue.DismissedToEnd -> {
+                                        // Handle complete action
                                         scope.launch {
                                             delay(40)
-                                            repository.markItemAsCompleted(item.id)
-                                            completedItems.add(item)
-                                            todoItems.remove(item)
+                                            viewModel.markItemAsCompleted(item) // Call ViewModel function to mark as completed
                                         }
                                         true
-                                    }
-
+                                    }*/
                                     else -> false
                                 }
                             }
@@ -349,10 +347,7 @@ fun MainScreen(navController: NavController, repository: TodoItemsRepository) {
 
                         SwipeToDismiss(
                             state = dismissState,
-                            directions = setOf(
-                                DismissDirection.EndToStart,
-                                DismissDirection.StartToEnd
-                            ),
+                            directions = setOf(DismissDirection.EndToStart, DismissDirection.StartToEnd),
                             dismissThresholds = { FractionalThreshold(0.6f) },
                             background = {
                                 Box(
@@ -384,10 +379,11 @@ fun MainScreen(navController: NavController, repository: TodoItemsRepository) {
                                     verticalArrangement = Arrangement.Top
                                 ) {
                                     val offsetX by animateDpAsState(
-                                        targetValue = if (dismissState.targetValue == DismissValue.DismissedToStart) (-1000).dp else if (dismissState.targetValue == DismissValue.DismissedToEnd) 1000.dp else 0.dp,
-                                        label = ""
+                                        targetValue = if (dismissState.targetValue == DismissValue.DismissedToStart) (-1000).dp
+                                        else if (dismissState.targetValue == DismissValue.DismissedToEnd) 1000.dp else 0.dp
                                     )
-                                    val isChecked = remember { mutableStateOf(item.isCompleted) }
+
+                                    val isChecked = remember { mutableStateOf(item.done) }
                                     Row(
                                         verticalAlignment = Alignment.Top,
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -401,29 +397,24 @@ fun MainScreen(navController: NavController, repository: TodoItemsRepository) {
                                             onCheckedChange = { checked ->
                                                 isChecked.value = checked
                                                 if (checked) {
-                                                    scope.launch {
-                                                        repository.markItemAsCompleted(item.id)
-                                                        delay(400)
-                                                        completedItems.add(item.copy(isCompleted = true))
-                                                        todoItems.remove(item)
-                                                    }
-
+                                                    // Mark as completed
+                                                   /* scope.launch {
+                                                        viewModel.markItemAsCompleted(item)
+                                                    }*/
                                                 } else {
-                                                    val updatedItem =
-                                                        item.copy(
-                                                            isCompleted = false,
-                                                            modifiedAt = Date().toString()
-                                                        )
-                                                    repository.addItem(updatedItem)
-                                                    todoItems[todoItems.indexOf(item)] = updatedItem
+                                                    // Unmark as completed (re-add to todoItems)
+                                                  /*  scope.launch {
+                                                        val updatedItem = item.copy(isCompleted = false)
+                                                        viewModel.markItemAsCompleted(updatedItem)
+                                                    }*/
                                                 }
                                             },
-                                            colors = androidx.compose.material3.CheckboxDefaults.colors(
+                                            colors = CheckboxDefaults.colors(
                                                 checkedColor = my_primary_color,
-                                                uncheckedColor = if (item.importance == Importance.ВЫСОКАЯ) Color.Red else my_secondary_color,
-                                                disabledUncheckedColor = if (item.importance == Importance.ВЫСОКАЯ) Color.Red else my_secondary_color,
+                                                uncheckedColor = if (item.importance == Importance.ВЫСОКАЯ) Color.Red else my_secondary_color
                                             )
                                         )
+
                                         Row(
                                             modifier = Modifier
                                                 .padding(top = 13.dp)
@@ -431,9 +422,7 @@ fun MainScreen(navController: NavController, repository: TodoItemsRepository) {
                                         ) {
                                             Column {
                                                 Row {
-                                                    if (
-                                                        !isChecked.value && item.importance == Importance.ВЫСОКАЯ
-                                                    ) {
+                                                    if (!isChecked.value && item.importance == Importance.ВЫСОКАЯ) {
                                                         Text(
                                                             "!! ",
                                                             fontWeight = FontWeight.ExtraBold,
@@ -453,7 +442,7 @@ fun MainScreen(navController: NavController, repository: TodoItemsRepository) {
 
                                                 Row {
                                                     Text(
-                                                        text = item.deadline ?: "Нет дедлайна",
+                                                        text = item.deadline.toString() ?: "Нет дедлайна",
                                                         color = Color.Gray,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis,
@@ -461,8 +450,8 @@ fun MainScreen(navController: NavController, repository: TodoItemsRepository) {
                                                     )
                                                 }
                                             }
-
                                         }
+
                                         IconButton(
                                             modifier = Modifier
                                                 .padding(top = 8.dp)
@@ -479,11 +468,7 @@ fun MainScreen(navController: NavController, repository: TodoItemsRepository) {
                                             )
                                         }
                                     }
-
-
                                 }
-
-
                             }
                         )
                     }
